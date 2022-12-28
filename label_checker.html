@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <!-- add title -->
+
+    <script type="text/javascript" src="./lib/d3.v5.min.js"></script>
+    <script type="text/javascript" src="./lib/d3-dsv.min.js"></script>
+    <script type = "text/javascript" src="./lib/d3-tip.min.js"></script>
+    <script type = "text/javascript" src="./lib/d3-legend.min.js"></script>
+
+    <link rel="stylesheet" href="./lib/bootstrap.min.css" >
+    <style>
+        /* define CSS rules here */
+
+        body {
+      font-family: "avenir next", Arial, sans-serif;
+      font-size: 12px;
+      margin: 0;
+    }
+    path.link {
+  fill: none;
+  stroke: none;
+  stroke-width: 1px;
+
+}
+h6 {
+  display: block;
+  font-size: 30px;
+  font-weight: bold;
+  text-anchor: middle;
+    text-align: center;
+    margin-top: 20px;
+    color: #117a8b;
+}
+h4 {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+  text-anchor: middle;
+    text-align: center;
+    margin-top: 10px;
+    color: #005cbf;
+}
+    </style>
+
+    <title></title>
+</head>
+
+
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <a class="navbar-brand" href="./home_page.html">FoodTIP</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+
+  <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <ul class="navbar-nav mr-auto">
+      <li class="nav-item">
+        <a class="nav-link" href="./home_page.html">Home <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item active">
+        <a class="nav-link" href="./label_checker.html">Nutrition data</a>
+      </li>
+    <li class="nav-item">
+        <a class="nav-link" href="./food_recommendation.html">Food Recommendations</a>
+      </li>
+    </ul>
+
+  </div>
+</nav>
+
+<div id = 'main_div'>
+    <select id = 'foodDropdown' size="1"></select>
+    <h6 id = 'selected_food_id'></h6>
+    <h4 id = 'selected_food_category'></h4>
+    <h4 id = 'selected_food_brand_owner'></h4>
+    <h4 id = 'sel_food_serving_size'></h4>
+    </div>
+    <script>
+
+        var colorArray = [d3.schemeCategory10, d3.schemeAccent];
+        var colorScheme = d3.scaleOrdinal(colorArray[0]);
+
+
+        Promise.all([
+            // enter code to read files
+            nutr_data = d3.csv('sample_foodx.csv'),
+            combos_data = d3.csv('combos_many_foods.csv'),
+            neighbor_data= d3.csv('close_50_neighbors.csv'),
+            neighbor_dist = d3.csv('close_50_neighbors_distance.csv')
+        ]).then(
+            // enter code to call ready() with required arguments
+            function (values) {
+
+                var all_data = values[0]
+                // var combos_data = values[1];
+                // var neigbo_data = values[2];
+                // var dist_data = values[3];
+                // console.log(dist_data);
+
+                // neigbo_data = neigbo_data.sort((a,b)=>d3.ascending(a.description,b.description));
+                // var d_list = [];
+                // neigbo_data.forEach(function (d) {
+                //     // console.log(d.fdc_id);
+                //     var sel = all_data.filter(function (p) {
+                //         return +p.fdc_id == +d.fdc_id;
+                //     })[0];
+                //     d_list.push({fdc_id:sel.fdc_id,description:sel.description})
+                // });
+
+                var d_list = all_data.map(function (d) {
+
+                    return {fdc_id:d.fdc_id,description:d.description};
+                })
+
+                d_list = d_list.sort((a,b)=>d3.ascending(a.description,b.description));
+                // console.log(d_list);
+            d3.select('#foodDropdown').attr('width',50)
+                    .selectAll('option')
+                    .data(d_list)
+                    .enter()
+                    .append('option')
+                    .text(function (d) {
+
+                        var sel = all_data.filter(function (p) {
+                        return +p.fdc_id == +d.fdc_id;
+                    })[0];
+                        return sel.description;
+                    }).attr('value',function (d) {
+
+                        return +d.fdc_id;
+                    });
+
+            d3.select("select")
+                  .on("change",function(d){
+                    var selectedFood_id = d3.select("#foodDropdown").node().value;
+
+                    var sel_food_data = all_data.filter(function (d) {
+                        return +d.fdc_id == selectedFood_id;
+                    })[0];
+
+
+                    // var combo_food_data = combos_data.filter(function (d) {
+                    //     return +d.fdc_id == selectedFood_id;
+                    // })[0];
+                    //
+                    //
+                    // var combo_details = []
+                    //
+                    // for ([key,value_id] of Object.entries(combo_food_data)){
+                    //
+                    //     var food_name = all_data.filter(function (d) {
+                    //     return +d.fdc_id == +value_id;
+                    // })[0];
+                    //     combo_details.push(food_name)
+                    //
+                    // }
+                    d3.select('#sel_food_name').remove();
+                    d3.select('#sel_food_category').remove();
+                    d3.select('#sel_food_bo').remove();
+                    d3.select('#sel_food_serv').remove();
+                  d3.select('#selected_food_id')
+                      .append('text').attr('id','sel_food_name')
+                      .text(sel_food_data.description);
+                  d3.select('#selected_food_category')
+                      .append('text').attr('id','sel_food_category')
+                      .text('Food Category : '+sel_food_data.branded_food_category);
+                  d3.select('#selected_food_brand_owner')
+                      .append('text').attr('id','sel_food_bo')
+                      .text('Brand Owner : '+sel_food_data.brand_owner);
+                  d3.select('#sel_food_serving_size')
+                      .append('text').attr('id','sel_food_serv')
+                      .text('Serving size : '+sel_food_data.serving_size+' '+sel_food_data.serving_size_unit);
+                    main_food_data(sel_food_data);
+            });
+
+            var selectedFood_id = d3.select("#foodDropdown").node().value;
+
+                    var sel_food_data = all_data.filter(function (d) {
+                        return +d.fdc_id == selectedFood_id;
+                    })[0];
+
+
+
+                    // var combo_food_data = combos_data.filter(function (d) {
+                    //     return +d.fdc_id == selectedFood_id;
+                    // })[0];
+                    //
+                    //
+                    // var combo_details = []
+                    //
+                    // for ([key,value_id] of Object.entries(combo_food_data)){
+                    //
+                    //     var food_name = all_data.filter(function (d) {
+                    //     return +d.fdc_id == +value_id;
+                    // })[0];
+                    //     combo_details.push(food_name)
+                    //
+                    // }
+                    // console.log(combo_details);
+
+                    // d3.select('#sel_food_name').remove();
+                  // d3.select('#sel_food_category').remove();
+                  //   d3.select('#sel_food_bo').remove();
+                  //   d3.select('#sel_food_serv').remove();
+                  d3.select('#selected_food_id')
+                      .append('text').attr('id','sel_food_name')
+                      .text(sel_food_data.description);
+                  d3.select('#selected_food_category')
+                      .append('text').attr('id','sel_food_category')
+                      .text('Food Category : '+sel_food_data.branded_food_category);
+                  d3.select('#selected_food_brand_owner')
+                      .append('text').attr('id','sel_food_bo')
+                      .text('Brand Owner : '+sel_food_data.brand_owner);
+                  d3.select('#sel_food_serving_size')
+                      .append('text').attr('id','sel_food_serv')
+                      .text('Serving size : '+sel_food_data.serving_size+' '+sel_food_data.serving_size_unit);
+                  console.log(sel_food_data);
+                    main_food_data(sel_food_data);
+            }
+
+            ).catch(function (error) {
+            console.log(error);
+        });
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+        function main_food_data(category_data){
+            d3.select('#total_food_data').remove();
+            // d3.select('#sel_food_name').remove();
+            // d3.select('body').append('svg').attr('id','#sel_food_name').attr('width',1400).attr('height',40).text(category_data.description).attr('x',10)
+            //     .attr('y',30).attr('text-anchor','left').attr('fill','grey').attr('font-size',40);
+  // console.log(category_data);
+  var sunlight14 = [
+    '#193556',
+     '#684664',
+    'green',
+    '#42A5B3',
+    'red',
+    '#E6842A',
+    '#137B80',
+    '#F6B656',
+    '#E3BA22',
+    '#42A5B3',
+    '#005D6E',
+    '#8E6C8A',
+    'black',
+    'black'
+  ]
+  var colorScale = d3.scaleOrdinal()
+          .range(sunlight14);
+
+  var width = 2000, height = 1000, margin = {top: 30, bottom: 30, left: 30, right: 30},
+          padding = {top: 30, bottom: 30, left: 30, right: 30};
+
+  var svg = d3.select('body').append('svg').attr('id', 'total_food_data')
+          .attr('width', width).attr('height', height);
+
+var major_arc = d3.arc()
+                .innerRadius(110)
+                .outerRadius(135);
+
+
+  var arc = d3.arc()
+          .innerRadius(60)
+          .outerRadius(90);
+    var sub_arc = d3.arc()
+          .innerRadius(35)
+          .outerRadius(50);
+  //Turn the pie chart 90 degrees counter clockwise, so it starts at the left
+  var pie = d3.pie()
+          .startAngle(0 * Math.PI / 180)
+          .endAngle(0 * Math.PI / 180 + 2 * Math.PI)
+          .padAngle(.01)
+          .sort(null);
+
+  var relevant_macros = [
+      'Protein','Carbohydrates','Fats','Cholesterol','Fiber','Sugars'];
+
+  var major_deets = ['Energy','P/E Ratio'];
+  var sub_deets = ['Saturated Fats','Trans Fats'];
+  var relevant_macros_data_names = {'Protein':'Protein','Energy':'Energy',
+    'Carbohydrates':'Carbohydrate, by difference','Fats':'Total lipid (fat)','Cholesterol':'Cholesterol','Fiber':'Fiber, total dietary','Sugars':'Sugars, total including NLEA',
+  'P/E Ratio':'PE_ratio','Saturated Fats':'Fatty acids, total saturated','Trans Fats':'Fatty acids, total trans'};
+  var relevant_macros_data_units = {'Protein':'grams','Energy':'Calories',
+    'Carbohydrates':'grams','Fats':'grams','Cholesterol':'mg','Fiber':'grams','Sugars':'grams','P/E Ratio':'grams/100 Cal','Saturated Fats':'grams','Trans Fats':'grams',
+  };
+
+  var relevant_macros_data_cols = {'Protein':2,'Energy':1,
+    'Carbohydrates':3,'Fats':4,'Cholesterol':4,'Fiber':2,'Sugars':3,'P/E Ratio':1,'Saturated Fats':5,'Trans Fats':5};
+
+  var relevant_macros_data_rows = {'Protein':1,'Energy':1,
+    'Carbohydrates':1,'Fats':1,'Cholesterol':2,'Fiber':2,'Sugars':2,'P/E Ratio':2,'Saturated Fats':0.75,'Trans Fats':1.25};
+
+  var rda_data =
+                {'Energy':2500,'Protein':100,'Carbohydrate, by difference':450,'Total lipid (fat)':70,'Fatty acids, total saturated':40,
+                    'Fatty acids, total trans':30,
+                    'Sugars, total including NLEA':50,
+                'Fiber, total dietary':240,'Cholesterol':240,'Sodium, Na':2000,'Calcium, Ca':1500,'Iron, Fe':40,'PE_ratio':10};
+
+
+  // svg.append('text').text('Food Category:'+category_data.branded_food_category.slice(0,40)).attr('x',100).attr('y',80).attr('text-anchor','left').attr('fill','grey').attr('font-size',40);
+  // svg.append('text').text('Brand Owner:'+category_data.brand_owner)
+  //         .attr('x',100).attr('y',150).attr('text-anchor','left').attr('fill','black').attr('font-size',25);
+  major_deets.forEach(function (strn,idx) {
+
+    var rel_str = relevant_macros_data_names[strn] ;
+    var rda_plot_data = {};
+    for([key,value] of Object.entries(rda_data)){
+      var new_key = key;
+      rda_plot_data[new_key] = value - (+category_data[new_key]);
+    }
+    pie.value(function (d) {
+      return +d[rel_str];
+    });
+
+    // if (idx<2){
+    //   row_num = 1;
+    // }
+    // else{
+    //   if (idx<5){
+    //     row_num = 2;
+    //
+    //   }
+    //   else{
+    //     row_num = 3;
+    //   }
+    // }
+
+   var g_ele = svg.append('g').attr('transform', 'translate(' +
+            (200 *(relevant_macros_data_cols[strn]) ) + ',' + ((315*(relevant_macros_data_rows[strn]))-150) + ')');
+
+            g_ele.selectAll(".donutArcSlices")
+            .data(pie([category_data, rda_plot_data]))
+            .enter().append("path")
+            .attr("class", "donutArcSlices")
+            .attr("d", major_arc)
+            .style("fill", colorScale(idx)).attr('opacity',function (d,i) {
+
+              if(i==0){
+                return 1;
+              }
+              else{
+                return  0.1;
+              }
+            }).each(function (d, i) {
+
+              var firstArcSection = /(^.+?)L/;
+              var newArc = firstArcSection.exec(d3.select(this).attr("d"))[1];
+              newArc = newArc.replace(/,/g, " ");
+
+              svg.append("path").attr("class", "hiddenDonutArcs")
+                      .attr("id", "donutArc" + i)
+                      .attr("d", newArc)
+                      .style("fill", "none");
+            });
+    g_ele.append('text').text(relevant_macros_data_units[strn])
+            .attr('x', 0).attr('y', 30).attr('fill', sunlight14[idx]).attr('text-anchor', 'middle');
+    g_ele.append('text').text(Math.round(category_data[rel_str] * 100) / 100)
+            .attr('x', 0).attr('y', -5).attr('fill', sunlight14[idx])
+            .attr('text-anchor', 'middle').attr('font-size', 30);
+    g_ele.append('text').text(strn)
+            .attr('x', 0).attr('y', function (d) {
+
+                if (relevant_macros_data_rows[strn]==1){return -150; }
+                else{return 170;}
+
+
+    }).attr('fill', sunlight14[idx])
+            .attr('text-anchor', 'middle').attr('font-size', 20);
+
+    // 		function animate() {
+    //     d3.selectAll("path")
+    // 				.transition()
+    //       .delay(function(d, i) { return i * 500; })
+    //       .duration(500)
+    //       	.attrTween('d', function(d) {
+    // 					var i = d3.interpolate(d.startAngle+0.1, d.endAngle);
+    // 					return function(t) {
+    //    				d.endAngle = i(t);
+    //  					return arc(d);
+    // 				}
+    // 				})
+    //   		.style('opacity', 1)
+    //   }
+    //
+    // 		animate();
+    //
+    //   d3.select('#category_data').on('click', click);
+    //
+    //   function click() {
+    //     d3.selectAll('path')
+    //       .transition()
+    //       .duration(0)
+    //       .style('opacity', 0)
+    //     .call(null, animate())
+    //   }
+    //
+    //   function arcTween(a) {
+    //     var i = d3.interpolate(this._current, a);
+    //     this._current = i(0);
+    //   return function(t) {
+    //   return arc(i(t));
+    //   };
+    //
+    // }
+  })
+
+    relevant_macros.forEach(function (strn,idx) {
+
+    var rel_str = relevant_macros_data_names[strn] ;
+    var rda_plot_data = {};
+    for([key,value] of Object.entries(rda_data)){
+      var new_key = key;
+      rda_plot_data[new_key] = value - (+category_data[new_key]);
+    }
+    pie.value(function (d) {
+      return +d[rel_str];
+    });
+
+    // if (idx<2){
+    //   row_num = 1;
+    // }
+    // else{
+    //   if (idx<5){
+    //     row_num = 2;
+    //
+    //   }
+    //   else{
+    //     row_num = 3;
+    //   }
+    // }
+    var clr = idx+2;
+   var g_ele = svg.append('g').attr('transform', 'translate(' +
+            (200 *(relevant_macros_data_cols[strn]) + 200 ) + ',' + ((315*relevant_macros_data_rows[strn])-150) + ')');
+
+            g_ele.selectAll(".donutArcSlices")
+            .data(pie([category_data, rda_plot_data]))
+            .enter().append("path")
+            .attr("class", "donutArcSlices")
+            .attr("d", arc)
+            .style("fill", colorScale(clr)).attr('opacity',function (d,i) {
+
+              if(i==0){
+                return 1;
+              }
+              else{
+                return  0.1;
+              }
+            }).each(function (d, i) {
+
+              var firstArcSection = /(^.+?)L/;
+              var newArc = firstArcSection.exec(d3.select(this).attr("d"))[1];
+              newArc = newArc.replace(/,/g, " ");
+
+              svg.append("path").attr("class", "hiddenDonutArcs")
+                      .attr("id", "donutArc" + i)
+                      .attr("d", newArc)
+                      .style("fill", "none");
+            });
+    g_ele.append('text').text(relevant_macros_data_units[strn])
+            .attr('x', 0).attr('y', 30).attr('fill', sunlight14[clr]).attr('text-anchor', 'middle');
+    g_ele.append('text').text(Math.round(category_data[rel_str] * 100) / 100)
+            .attr('x', 0).attr('y', -5).attr('fill', sunlight14[clr])
+            .attr('text-anchor', 'middle').attr('font-size', 30);
+    g_ele.append('text').text(strn)
+            .attr('x', 0).attr('y', function (d) {
+
+                if (relevant_macros_data_rows[strn]==1){return -120; }
+                else{return 150;}
+
+
+    }).attr('fill', sunlight14[clr])
+            .attr('text-anchor', 'middle').attr('font-size', 20);
+
+    // 		function animate() {
+    //     d3.selectAll("path")
+    // 				.transition()
+    //       .delay(function(d, i) { return i * 500; })
+    //       .duration(500)
+    //       	.attrTween('d', function(d) {
+    // 					var i = d3.interpolate(d.startAngle+0.1, d.endAngle);
+    // 					return function(t) {
+    //    				d.endAngle = i(t);
+    //  					return arc(d);
+    // 				}
+    // 				})
+    //   		.style('opacity', 1)
+    //   }
+    //
+    // 		animate();
+    //
+    //   d3.select('#category_data').on('click', click);
+    //
+    //   function click() {
+    //     d3.selectAll('path')
+    //       .transition()
+    //       .duration(0)
+    //       .style('opacity', 0)
+    //     .call(null, animate())
+    //   }
+    //
+    //   function arcTween(a) {
+    //     var i = d3.interpolate(this._current, a);
+    //     this._current = i(0);
+    //   return function(t) {
+    //   return arc(i(t));
+    //   };
+    //
+    // }
+  })
+
+    sub_deets.forEach(function (strn,idx) {
+
+    var rel_str = relevant_macros_data_names[strn] ;
+    var rda_plot_data = {};
+    for([key,value] of Object.entries(rda_data)){
+      var new_key = key;
+      rda_plot_data[new_key] = value - (+category_data[new_key]);
+    }
+    pie.value(function (d) {
+      return +d[rel_str];
+    });
+
+    // if (idx<2){
+    //   row_num = 1;
+    // }
+    // else{
+    //   if (idx<5){
+    //     row_num = 2;
+    //
+    //   }
+    //   else{
+    //     row_num = 3;
+    //   }
+    // }
+    var clr = idx+12;
+   var g_ele = svg.append('g').attr('transform', 'translate(' +
+            (200 *(relevant_macros_data_cols[strn]) + 200 ) + ',' + ((315*relevant_macros_data_rows[strn])-150) + ')');
+
+            g_ele.selectAll(".donutArcSlices")
+            .data(pie([category_data, rda_plot_data]))
+            .enter().append("path")
+            .attr("class", "donutArcSlices")
+            .attr("d", sub_arc)
+            .style("fill", sunlight14[clr]).attr('opacity',function (d,i) {
+
+              if(i==0){
+                return 1;
+              }
+              else{
+                return  0.1;
+              }
+            }).each(function (d, i) {
+
+              var firstArcSection = /(^.+?)L/;
+              var newArc = firstArcSection.exec(d3.select(this).attr("d"))[1];
+              newArc = newArc.replace(/,/g, " ");
+
+              svg.append("path").attr("class", "hiddenDonutArcs")
+                      .attr("id", "donutArc" + i)
+                      .attr("d", newArc)
+                      .style("fill", "none");
+            });
+    g_ele.append('text').text(relevant_macros_data_units[strn])
+            .attr('x', 0).attr('y', 20).attr('fill', sunlight14[clr]).attr('text-anchor', 'middle');
+    g_ele.append('text').text(Math.round(category_data[rel_str] * 100) / 100)
+            .attr('x', 0).attr('y', -5).attr('fill', sunlight14[clr])
+            .attr('text-anchor', 'middle').attr('font-size', 15);
+    g_ele.append('text').text(strn)
+            .attr('x', 0).attr('y', function (d) {
+
+                if (relevant_macros_data_rows[strn]<=1){return -60; }
+                else{return 80;}
+
+
+    }).attr('fill', sunlight14[clr])
+            .attr('text-anchor', 'middle').attr('font-size', 20);
+
+    // 		function animate() {
+    //     d3.selectAll("path")
+    // 				.transition()
+    //       .delay(function(d, i) { return i * 500; })
+    //       .duration(500)
+    //       	.attrTween('d', function(d) {
+    // 					var i = d3.interpolate(d.startAngle+0.1, d.endAngle);
+    // 					return function(t) {
+    //    				d.endAngle = i(t);
+    //  					return arc(d);
+    // 				}
+    // 				})
+    //   		.style('opacity', 1)
+    //   }
+    //
+    // 		animate();
+    //
+    //   d3.select('#category_data').on('click', click);
+    //
+    //   function click() {
+    //     d3.selectAll('path')
+    //       .transition()
+    //       .duration(0)
+    //       .style('opacity', 0)
+    //     .call(null, animate())
+    //   }
+    //
+    //   function arcTween(a) {
+    //     var i = d3.interpolate(this._current, a);
+    //     this._current = i(0);
+    //   return function(t) {
+    //   return arc(i(t));
+    //   };
+    //
+    // }
+  })
+
+        }
+
+    </script>
+
+</body>
+
+</html>
