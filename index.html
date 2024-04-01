@@ -13,6 +13,7 @@
 if (location.host.toLowerCase().indexOf('akesharwini') >= 0) {
   window.location="home_page.html";
 }
+loadMarkdown("README.md", "readmeDiv", "_parent");
 </script>
 
 <!-- id prevents duplicate loading -->
@@ -38,24 +39,26 @@ text {
   font-size: 16px !important;
 }
 #earthscapeFooter {
-  display: inline-block !important; /* temp */
+  displayX: inline-block !important; /* temp */
 }
 </style>
 </head>
 
 <body>
 
-<div class="content contentPadding">
+<div class="content contentPadding" style="padding-left: 44px;">
 <br>
 
-<div class="floatRight">
+<div class="floatRight" style="max-width:300px;">
+  <h3>Balanced Diets</h3>
   <a href="./label_checker.html">Nutrition Data</a><br>
   <a href="./food_recommendation.html">Recommendations</a>
-  <br><br>
-  Choose food categories to find balance.
+  <br>
+  <div id="readmeDiv"></div>
 </div>
 
-<h1><b style="font-weight:800 !important;">FoodTip</b> Balanced Diets, Biodiverse Environments</h1>
+<h1 style="font-size:24px;"><b style="font-weight:800 !important;">FoodTips</b> for Balanced Diets & Biodiverse Environments</h1>
+Choose food categories to find balance (under development)
 <div id="vis">
 </div>
 
