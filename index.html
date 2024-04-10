@@ -1,33 +1,677 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>FoodTIP</title>
-  <link rel="stylesheet" href="./lib/bootstrap.min.css" >
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
 <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Balanced Diets, Biodiverse Environments</title>
+
+<link type="text/css" href="/localsite/css/base.css" rel="stylesheet" id="/localsite/css/base.css" />
+<script type="text/javascript" src="/localsite/js/localsite.js?showheader=true&showsearch=true"></script>
+
+<script type="text/javascript">
+if (location.host.toLowerCase().indexOf('akesharwini') >= 0) {
+  window.location="home_page.html";
+}
+loadMarkdown("README.md", "readmeDiv", "_parent");
+</script>
+
+<!-- id prevents duplicate loading -->
+<script type="text/javascript" src="./lib/d3.v5.min.js" id="/localsite/js/d3.v5.min.js"></script>
+<script type="text/javascript" src="./lib/d3-dsv.min.js"></script>
+<script type = "text/javascript" src="./lib/d3-tip.min.js"></script>
+<script type = "text/javascript" src="./lib/d3-legend.min.js"></script>
+<script src="./lib/d3-hexbin.v0.2.min.js"></script>
+
+<style>
+body {
+  font-family: "avenir next", Arial, sans-serif;
+  font-size: 12px;
+  margin: 0;
+}
+path.link {
+  fill: none;
+  stroke: none;
+  stroke-width: 1px;
+
+}
+text {
+  font-size: 16px !important;
+}
+#earthscapeFooter {
+  displayX: inline-block !important; /* temp */
+}
+</style>
 </head>
+
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
-  <a class="navbar-brand" href="./home_page.html">FoodTIP</a>
-  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-    <span class="navbar-toggler-icon"></span>
-  </button>
 
-  <div class="collapse navbar-collapse" id="navbarSupportedContent">
-    <ul class="navbar-nav mr-auto">
-      <li class="nav-item active">
-        <a class="nav-link" href="./home_page.html">Home <span class="sr-only">(current)</span></a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link" href="./label_checker.html">Nutrition data</a>
-      </li>
-    <li class="nav-item">
-        <a class="nav-link" href="./food_recommendation.html">Food Recommendations</a>
-      </li>
-    </ul>
+<div class="content contentPadding" style="padding-left: 44px;">
+<br>
 
-  </div>
-</nav>
+<div class="floatRight" style="max-width:300px;">
+  <h3>Balanced Diets</h3>
+  <a href="./label_checker.html">Nutrition Data</a><br>
+  <a href="./food_recommendation.html">Recommendations</a>
+  <br>
+  <div id="readmeDiv"></div>
+</div>
+
+<h1 style="font-size:24px;"><b style="font-weight:800 !important;">FoodTips</b> for Balanced Diets & Biodiverse Environments</h1>
+Choose food categories to find balance (under development)
+<div id="vis">
+</div>
+
+</div>
+
+
+<script>
+function myBubbleChart(element_id,data) {
+    // console.log(data);
+  data = data.sort((a,b)=> d3.descending(+a.Energy_count,+b.Energy_count));
+  // console.log(window.inn);
+  const width = 700;
+  const height = 1200/2;
+
+  // location to centre the bubbles
+  const centre = { x: width/2, y: height/2 };
+
+  // strength to apply to the position forces
+  const forceStrength = 0.03;
+
+  // these will be set in createNodes and chart functions
+  let svg = null;
+  let bubbles = null;
+  let labels = null;
+  let nodes = [];
+
+  // charge is dependent on size of the bubble, so bigger towards the middle
+  function charge(d) {
+    return Math.pow(d.radius, 2.0) * 0.01
+  }
+
+
+  // create a force simulation and add forces to it
+  const simulation = d3.forceSimulation()
+    .force('charge', d3.forceManyBody().strength(charge))
+    // .force('center', d3.forceCenter(centre.x, centre.y))
+    .force('x', d3.forceX().strength(forceStrength).x(centre.x))
+    .force('y', d3.forceY().strength(forceStrength).y(centre.y))
+    .force('collision', d3.forceCollide().radius(d => d.radius + 1));
+
+  // force simulation starts up automatically, which we don't want as there aren't any nodes yet
+  simulation.stop();
+
+  // set up colour scale
+    var max_count = d3.max(data,function (d) {
+        return +d.Energy_count;
+    });
+  const fillColour = d3.scalePow().exponent(1.5).domain([1,max_count]).range(["#edf8b1", "#2c7fb8"]);
+
+  // data manipulation function takes raw data from csv and converts it into an array of node objects
+  // each node will store data and visualisation values to draw a bubble
+  // rawData is expected to be an array of data objects, read in d3.csv
+  // function returns the new node array, with a node for each element in the rawData input
+  function createNodes(rawData) {
+    // use max size in the data as the max in the scale's domain
+    // note we have to ensure that size is a number
+    const maxSize = d3.max(rawData, d => +d.Energy_count);
+
+    // size bubbles based on area
+    const radiusScale = d3.scaleSqrt()
+      .domain([1, maxSize])
+      .range([6, 50])
+
+    // use map() to convert raw data into node data
+    const myNodes = rawData.map(d => ({
+      ...d,
+      radius: radiusScale(+d.Energy_count),
+      size: +d.Energy_count,
+      x: Math.random() * 900,
+      y: Math.random() * 800
+    }))
+    // console.log(myNodes);
+    return myNodes;
+  }
+
+  // main entry point to bubble chart, returned by parent closure
+  // prepares rawData for visualisation and adds an svg element to the provided selector and starts the visualisation process
+  let chart = function chart(selector, rawData) {
+    // convert raw data into nodes data
+    nodes = createNodes(rawData);
+
+    // create svg element inside provided selector
+    svg = d3.select(selector)
+      .append('svg')
+      .attr('width', width)
+      .attr('height', height)
+
+svg.append('g').attr('id','bubble_heading').attr('transform','translate(25,150)')
+
+    // bind nodes data to circle elements
+    const elements = svg.selectAll('.bubble')
+      .data(nodes, d => d.category)
+      .enter()
+      .append('g')
+
+    bubbles = elements
+      .append('circle')
+      .classed('bubble', true)
+      .attr('r', d => d.radius)
+      .attr('fill', d => fillColour(+d.Energy_count))
+      .on('mouseover',function (d) {
+        // console.log(d);
+        d3.select(this).attr('r',d=>2*d.radius)
+
+      }).on('mouseout',function (d) {
+        d3.select(this).attr('r',d=>d.radius).attr('stroke','None');
+      }).on('click',function (d) {
+              // console.log(d);
+              display_category_summary(d);
+         d3.select(this).attr('r',d=>2*d.radius).attr('stroke','steelblue').attr('stroke-width',3);
+
+            })
+
+
+
+    // labels
+    labels = elements
+      .append('text')
+      .attr('dy', '.3em')
+      .style('text-anchor', 'right')
+      .style('font-size', 10)
+      .text(function (d,i) {
+        // console.log(d,i);
+        if (i<10){
+          return d.branded_food_category;
+        }
+
+      })
+
+    // set simulation's nodes to our newly created nodes array
+    // simulation starts running automatically once nodes are set
+    simulation.nodes(nodes)
+      .on('tick', ticked)
+      .restart();
+  }
+
+  // callback function called after every tick of the force simulation
+  // here we do the actual repositioning of the circles based on current x and y value of their bound node data
+  // x and y values are modified by the force simulation
+  function ticked() {
+    bubbles
+      .attr('cx', d => d.x)
+      .attr('cy', d => d.y)
+
+    labels
+      .attr('x', d => d.x)
+      .attr('y', d => d.y)
+  }
+
+  // return chart function from closure
+  return chart(element_id,data);
+}
+function display_category_summary(category_data) {
+
+  d3.select('#category_data').remove();
+  // console.log(category_data);
+  var sunlight14 = [
+    '#193556',
+     '#684664',
+    'green',
+    '#42A5B3',
+    'red',
+    '#E6842A',
+    '#137B80',
+    '#F6B656',
+    '#E3BA22',
+    '#42A5B3',
+    '#005D6E',
+    '#8E6C8A',
+    '#B396AD',
+    '#684664'
+  ]
+  var colorScale = d3.scaleOrdinal()
+          .range(sunlight14);
+
+  var width = 700, height = 1200, margin = {top: 30, bottom: 30, left: 30, right: 30},
+          padding = {top: 30, bottom: 30, left: 30, right: 30};
+
+  var svg = d3.select('#vis').append('svg').attr('id', 'category_data')
+          .attr('width', width).attr('height', height);
+
+
+  var arc = d3.arc()
+          .innerRadius(60)
+          .outerRadius(90);
+
+  //Turn the pie chart 90 degrees counter clockwise, so it starts at the left
+  var pie = d3.pie()
+          .startAngle(0 * Math.PI / 180)
+          .endAngle(0 * Math.PI / 180 + 2 * Math.PI)
+          .padAngle(.01)
+          .sort(null);
+
+  var relevant_macros = [ 'Energy','P/E Ratio','Protein','Carbohydrates','Fats','Cholesterol','Fiber','Sugars']
+
+  var relevant_macros_data_names = {'Protein':'Protein','Energy':'Energy',
+    'Carbohydrates':'Carbohydrate, by difference','Fats':'Total lipid (fat)','Cholesterol':'Cholesterol','Fiber':'Fiber, total dietary','Sugars':'Sugars, total including NLEA',
+  'P/E Ratio':'PE_ratio'};
+  var relevant_macros_data_units = {'Protein':'grams','Energy':'Calories',
+    'Carbohydrates':'grams','Fats':'grams','Cholesterol':'mg','Fiber':'grams','Sugars':'grams','P/E Ratio':'grams/100 Cal'};
+
+  var relevant_macros_data_cols = {'Protein':1,'Energy':1.5,
+    'Carbohydrates':2,'Fats':3,'Cholesterol':2,'Fiber':1,'Sugars':3,'P/E Ratio':2.5};
+
+  var rda_data =
+                {'Energy':2500,'Protein':100,'Carbohydrate, by difference':450,'Total lipid (fat)':70,'Fatty acids, total saturated':40,
+                    'Fatty acids, total trans':30,
+                    'Sugars, total including NLEA':50,
+                'Fiber, total dietary':240,'Cholesterol':240,'Sodium, Na':2000,'Calcium, Ca':1500,'Iron, Fe':40,'PE_ratio':10};
+
+  svg.append('text').text(category_data.branded_food_category.slice(0,40)).attr('x',100).attr('y',80).attr('text-anchor','left').attr('fill','grey').attr('font-size',40);
+  svg.append('text').text('# of foods in this category:'+parseInt(+category_data.Energy_count))
+          .attr('x',100).attr('y',150).attr('text-anchor','left').attr('fill','black').attr('font-size',25);
+  relevant_macros.forEach(function (strn,idx) {
+
+    var suffix = '_mean';
+    var rel_str = relevant_macros_data_names[strn] + suffix;
+    var rda_plot_data = {};
+    for([key,value] of Object.entries(rda_data)){
+      var new_key = key+suffix;
+      rda_plot_data[new_key] = value - (+category_data[new_key]);
+    }
+    pie.value(function (d) {
+      return +d[rel_str];
+    });
+
+    if (idx<2){
+      row_num = 1;
+    }
+    else{
+      if (idx<5){
+        row_num = 2;
+
+      }
+      else{
+        row_num = 3;
+      }
+    }
+
+   var g_ele = svg.append('g').attr('transform', 'translate(' +
+            (200 *(relevant_macros_data_cols[strn]) ) + ',' + (300*row_num) + ')');
+
+            g_ele.selectAll(".donutArcSlices")
+            .data(pie([category_data, rda_plot_data]))
+            .enter().append("path")
+            .attr("class", "donutArcSlices")
+            .attr("d", arc)
+            .style("fill", colorScale(idx)).attr('opacity',function (d,i) {
+
+              if(i==0){
+                return 1;
+              }
+              else{
+                return  0.1;
+              }
+            }).each(function (d, i) {
+
+              var firstArcSection = /(^.+?)L/;
+              var newArc = firstArcSection.exec(d3.select(this).attr("d"))[1];
+              newArc = newArc.replace(/,/g, " ");
+
+              svg.append("path").attr("class", "hiddenDonutArcs")
+                      .attr("id", "donutArc" + i)
+                      .attr("d", newArc)
+                      .style("fill", "none");
+
+
+
+            });
+
+           //  g_.selectAll(".donutText")
+			// .data(donutData)
+		   // .enter().append("text")
+			// .attr("class", "donutText")
+			// .attr("dy", -13)
+		   // .append("textPath")
+			// .attr("startOffset","50%")
+			// .style("text-anchor","middle")
+			// .attr("xlink:href",function(d,i){return "#donutArc"+i;})
+			// .text(function(d){
+           //      console.log(d.description);
+           //      return d.description;});
+    g_ele.append('text').text(relevant_macros_data_units[strn])
+            .attr('x', 0).attr('y', 30).attr('fill', sunlight14[idx]).attr('text-anchor', 'middle');
+    g_ele.append('text').text(Math.round(category_data[rel_str] * 100) / 100)
+            .attr('x', 0).attr('y', -5).attr('fill', sunlight14[idx])
+            .attr('text-anchor', 'middle').attr('font-size', 30);
+    g_ele.append('text').text('Avg ' + strn)
+            .attr('x', 0).attr('y', 130).attr('fill', sunlight14[idx])
+            .attr('text-anchor', 'middle').attr('font-size', 20);
+
+    // 		function animate() {
+    //     d3.selectAll("path")
+    // 				.transition()
+    //       .delay(function(d, i) { return i * 500; })
+    //       .duration(500)
+    //       	.attrTween('d', function(d) {
+    // 					var i = d3.interpolate(d.startAngle+0.1, d.endAngle);
+    // 					return function(t) {
+    //    				d.endAngle = i(t);
+    //  					return arc(d);
+    // 				}
+    // 				})
+    //   		.style('opacity', 1)
+    //   }
+    //
+    // 		animate();
+    //
+    //   d3.select('#category_data').on('click', click);
+    //
+    //   function click() {
+    //     d3.selectAll('path')
+    //       .transition()
+    //       .duration(0)
+    //       .style('opacity', 0)
+    //     .call(null, animate())
+    //   }
+    //
+    //   function arcTween(a) {
+    //     var i = d3.interpolate(this._current, a);
+    //     this._current = i(0);
+    //   return function(t) {
+    //   return arc(i(t));
+    //   };
+    //
+    // }
+  })
+}
+
+function display_top_categories(data) {
+
+
+  var x_axis = d3.axisBottom();//.tickFormat(format_date);
+var y_axis = d3.axisLeft();
+  var width = 700,height = 500,padding = {top:50,bottom:50,right:50,left:50},margin =
+          {top:50,bottom:50,right:100,left:50};
+  data = data.sort((a,b)=> d3.descending(+a.Energy_mean,+b.Energy_mean));
+  // console.log(data);
+  var inner_width = width-padding.left-padding.right-margin.left-margin.right;
+  var inner_height = height-padding.top-padding.bottom-margin.top-margin.bottom;
+  var all_categories = data.map(d=>d.branded_food_category);
+  // console.log(all_categories);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+var svg2 = d3.select("body").append("svg").attr("width",width)
+			.attr("height",height).append('g').attr('transform','translate('+0+',0)');
+svg2.append('g').attr('transform','translate(80,40)').append('text').text('Top Branded food categories:').attr('x',0).attr('y',0)
+        .attr('fill','grey').attr('text-anchor','right').attr('font-size',27);
+
+svg2.append('g').attr('transform','translate(120,80)').append('text').text('Average Protein (in grams) per serving of food').attr('x',0).attr('y',0)
+        .attr('fill','green').attr('text-anchor','left').attr('font-size',15);
+
+var data_temp = data.filter(function (d) {
+    return +d.PE_ratio_count>1000;
+  });
+
+var data_pe = data_temp.sort((a,b)=>d3.descending(+a['Protein_mean'],+b['Protein_mean']));
+var num_cats = 10;
+var top_n_categories2 = data_pe.slice(0,num_cats);
+
+var xScale2 = d3.scaleBand().domain(top_n_categories2.map(function (d) {
+  return d.branded_food_category;
+})).range([padding.top+margin.top,height-padding.bottom-margin.bottom]);
+
+
+  // var xScale2 = d3.scaleLinear().domain([0,num_cats])
+	// 			.range([margin.left+padding.left,width-margin.right-padding.right]);
+  // console.log(xScale(all_categories[100]));
+  var yScale2 = d3.scaleLinear().domain([d3.min(data,function (d) {
+    return +d['Protein_mean'];
+  }),d3.max(data,function (d) {
+    return +d['Protein_mean'];
+  })]).range([padding.left+margin.left,width-padding.right-margin.right]);
+
+  // console.log(yScale2.domain());
+var pointer = svg2.selectAll('rect')
+	.data(top_n_categories2)
+	.enter().append('g');
+var bar_height = ((inner_height)/num_cats)-2;
+	pointer.append('rect')
+	.attr("x",margin.left+padding.left)
+	.attr("y",function(d){return xScale2(d['branded_food_category']);})
+	.attr("height",bar_height)
+	.attr("width",function(d){return  yScale2(+d['Protein_mean']);} )
+	.attr('fill','#2E8B57')
+	.attr('opacity',1);
+    pointer.append('text')
+	.text(function (d) {
+      return d['branded_food_category'].slice(0,40)  ;
+    }).attr("x",function(d){return  margin.left+1.5*padding.left;})
+	.attr("y",function(d){return xScale2(d['branded_food_category'])+(bar_height/2);})
+	.attr('fill','white').attr('text-anchor','left');
+
+
+    pointer.append('text')
+	.text(function (d) {
+      return  Math.round(d['Protein_mean'] * 100) / 100 ;
+    }).attr("x",function(d){return margin.left+padding.left+5 + yScale2(+d['Protein_mean']);})
+	.attr("y",function(d){return xScale2(d['branded_food_category'])+(bar_height/2);})
+	.attr('fill','black').attr('text-align','right');
+
+//.tickValues(d3.range(y_scale_domain[0],y_scale_domain[1]).filter(function
+          //(d) {return ( d % 10000 == 0)}));
+
+// var x_axis_ele_b = svg3.append('g').attr('id','x-axis-b');
+//     x_axis_ele_b.call(x_axis.scale(yScale2)).attr('transform','translate('+0+','+(height-margin.bottom-padding.bottom)+')');
+    // x_axis_ele_b.append('text').text('Month').attr('transform','translate('+(tot_width/2)+','+(margin.bottom+(padding.bottom/2))+')').attr('fill','black').style('font-size',15);
+// var y_axis_ele_b =svg3.append('g').attr('id','y-axis-b');
+//     y_axis_ele_b.call(y_axis.scale(xScale2)).attr('transform','translate('+(margin.left+padding.left)+','+0+')');
+    // y_axis_ele_b.append('text').text('Num of ratings').attr('transform','translate('+(-margin.left)+','+(tot_height/2)+') rotate(-90)').attr('fill','black').style('font-size',15);
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// d3.select('p').on('click',function(){
+//
+//
+// 		dataset2.push(25);
+// 	xScale2.domain(d3.range(dataset2.length));
+// 	var bars = svg2.selectAll('rect').data(dataset2);
+//
+// 	bars.enter().append('rect')
+// 		.attr('x',w)
+// 		.attr('y',function(d){return h-yScale(d);})
+// 		.attr("width",xScale2.bandwidth())
+// 		.attr('height',function(d){return yScale(d);})
+// 		.attr('fill','black')
+// 		.merge(bars)
+// 		.transition()
+// 		.duration(1000)
+// 		.attr("x",function(d,i){
+// 			return xScale2(i);
+// 		})
+// 		.attr("y",function(d){
+// 			return h - yScale(d);
+// 		})
+// 		.attr("width",xScale2.bandwidth())
+// 		.attr("height",function(d){
+// 			return yScale(d);
+// 		});
+//
+//
+//
+// 	});
+
+// svg2.selectAll('text')
+// 	.data(data)
+// 	.enter()
+// 	.append('text')
+// 	.text(function(d) { return d.branded_food_category;})
+// 	.attr("x", function(d, i) {return xScale(i) ;})
+// 	.attr("y", function(d) {return height - yScale(+d.Energy_mean) + 14; })
+// 	.attr("font-family", "sans-serif")
+// 	.attr("font-size", "10px")
+// 	.attr("fill", "black");
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var svg3 = d3.select("body").append("svg").attr("width",width)
+			.attr("height",height).append('g').attr('transform','translate('+0+',0)');
+
+svg3.append('g').attr('transform','translate(120,80)').append('text').text('Average Protein/Energy ratio (in grams/100 Cal) per serving of food').attr('x',0).attr('y',0)
+        .attr('fill','steelblue').attr('text-anchor','left').attr('font-size',15);
+
+var data_temp = data.filter(function (d) {
+    return +d.PE_ratio_count>1000;
+  });
+
+var data_pe = data_temp.sort((a,b)=>d3.descending(+a.PE_ratio_mean,+b.PE_ratio_mean));
+var num_cats = 10;
+var top_n_categories2 = data_pe.slice(0,num_cats);
+
+var xScale2 = d3.scaleBand().domain(top_n_categories2.map(function (d) {
+  return d.branded_food_category;
+})).range([padding.top+margin.top,height-padding.bottom-margin.bottom]);
+
+console.log(xScale2.domain());
+
+  // var xScale2 = d3.scaleLinear().domain([0,num_cats])
+	// 			.range([margin.left+padding.left,width-margin.right-padding.right]);
+  // console.log(xScale(all_categories[100]));
+  var yScale2 = d3.scaleLinear().domain([d3.min(data,function (d) {
+    return +d.PE_ratio_mean;
+  }),d3.max(data,function (d) {
+    return +d.PE_ratio_mean;
+  })]).range([padding.left+margin.left,width-padding.right-margin.right]);
+
+  console.log(yScale2.domain());
+var pointer = svg3.selectAll('rect')
+	.data(top_n_categories2)
+	.enter().append('g');
+var bar_height = ((inner_height)/num_cats)-2;
+	pointer.append('rect')
+	.attr("x",margin.left+padding.left)
+	.attr("y",function(d){return xScale2(d['branded_food_category']);})
+	.attr("height",bar_height)
+	.attr("width",function(d){return  yScale2(+d.PE_ratio_mean);} )
+	.attr('fill','steelblue')
+	.attr('opacity',1);
+    pointer.append('text')
+	.text(function (d) {
+      return d['branded_food_category'].slice(0,40)  ;
+    }).attr("x",function(d){return  margin.left+1.5*padding.left;})
+	.attr("y",function(d){return xScale2(d['branded_food_category'])+(bar_height/2);})
+	.attr('fill','white').attr('text-anchor','left');
+
+
+    pointer.append('text')
+	.text(function (d) {
+      return  Math.round(d.PE_ratio_mean * 100) / 100 ;
+    }).attr("x",function(d){return margin.left+padding.left+5 + yScale2(+d.PE_ratio_mean);})
+	.attr("y",function(d){return xScale2(d['branded_food_category'])+(bar_height/2);})
+	.attr('fill','black').attr('text-align','right');
+
+//.tickValues(d3.range(y_scale_domain[0],y_scale_domain[1]).filter(function
+          //(d) {return ( d % 10000 == 0)}));
+
+// var x_axis_ele_b = svg3.append('g').attr('id','x-axis-b');
+//     x_axis_ele_b.call(x_axis.scale(yScale2)).attr('transform','translate('+0+','+(height-margin.bottom-padding.bottom)+')');
+    // x_axis_ele_b.append('text').text('Month').attr('transform','translate('+(tot_width/2)+','+(margin.bottom+(padding.bottom/2))+')').attr('fill','black').style('font-size',15);
+// var y_axis_ele_b =svg3.append('g').attr('id','y-axis-b');
+//     y_axis_ele_b.call(y_axis.scale(xScale2)).attr('transform','translate('+(margin.left+padding.left)+','+0+')');
+    // y_axis_ele_b.append('text').text('Num of ratings').attr('transform','translate('+(-margin.left)+','+(tot_height/2)+') rotate(-90)').attr('fill','black').style('font-size',15);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+}
+
+function show_category_data(data) {
+  var svg = d3.select("body").append('svg').attr('id','category_data').attr('width',500).attr('height',500),
+    width = +svg.attr("width"),
+    height = +svg.attr("height"),
+    angles = d3.range(0, 2 * Math.PI, 2*Math.PI /200);
+  console.log(angles);
+
+var path = svg.append("g")
+    .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")")
+    .attr("fill", "none")
+    .attr("stroke-width", 4)
+    .attr("stroke-linejoin", "round")
+  .selectAll("path")
+  .data(['lightgreen','green','steelblue'])
+  .enter().append("path")
+    .attr("stroke", function(d) { return d; })
+    .style("mix-blend-mode", "darken")
+    .datum(function(d, i) {
+      return d3.radialLine()
+          .curve(d3.curveLinearClosed)
+          .angle(function(a) { return a; })
+          .radius(function(a) {
+            var t = d3.now() / 1000;
+            return 200 + Math.cos(a * 8 - i * 2 * Math.PI / 3 + t) * Math.pow((1 + Math.cos(a - t)) / 2, 3) * 32;
+          });
+    });
+
+d3.timer(function() {
+  path.attr("d", function(d) {
+    return d(angles);
+  });
+});
+
+
+    // var hexbin = d3.hexbin();
+
+// var svg = d3.select("body").append('svg').attr('id','hex_data').attr('width',200).attr('height',200),
+//     margin = {top: 40, right: 20, bottom: 20, left: 40},
+//     width = +svg.attr("width") - margin.left - margin.right,
+//     height = +svg.attr("height") - margin.top - margin.bottom,
+//     g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+//
+// var randomX = d3.randomNormal(width / 2, 80),
+//     randomY = d3.randomNormal(height / 2, 80),
+//     points = d3.range(10000).map(function() { return [randomX(), randomY()]; });
+//     console.log(points);
+// var hexbin = d3.hexbin()
+//     .extent([[-margin.left, -margin.top], [width + margin.right, height + margin.bottom]])
+//     .radius(10);
+//
+// var bins = hexbin(points);
+//
+// var color = d3.scaleSequential(d3.interpolateMagma)
+//     .domain([d3.max(bins, function(d) { return d.length; }), 0]);
+//
+// g.append("g")
+//     .attr("fill", "none")
+//     .attr("stroke", "#fff")
+//     .attr("stroke-opacity", 0.5)
+//   .selectAll("path")
+//   .data(bins)
+//   .enter().append("path")
+//     .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+//     .attr("fill", function(d) { return color(d.length); })
+//     .attr("d", hexbin.hexagon());
+//
+// g.append("g")
+//     .call(d3.axisTop(d3.scaleIdentity().domain([0, width])));
+//
+// g.append("g")
+//     .call(d3.axisLeft(d3.scaleIdentity().domain([0, height])));
+
+}
+
+function display(data) {
+
+  myBubbleChart('#vis', data);
+  display_top_categories(data);
+
+
+}
+
+d3.csv('temp.csv').then(function (data) {
+  console.log(data);
+})
+// load data
+d3.csv('temp.csv').then(display);
+
+
+</script>
 </body>
 </html>
