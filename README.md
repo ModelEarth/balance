@@ -1,6 +1,6 @@
 ### Data Sources
 <!--Food Balance Visualization-->
-We're building nutrition profiles for any vegetable/fruit/branded foods and dishes.
+We're building [nutrition profiles from YAML](/data-commons/dist/food/) for individual foods and meals.
 
 [FDA Food Database](https://fdc.nal.usda.gov/download-datasets.html)
 Four categories of foods are updated every quarter.
